@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import logging
 
 from requests.auth import HTTPBasicAuth
 
@@ -10,14 +11,14 @@ def abbrStation(journeyConfig, inputStr):
         inputStr = inputStr.replace(key, dict[key])
     return inputStr
 
-def loadDeparturesForStationRTT(journeyConfig, username, password):
+def loadDeparturesForStationRtt(journeyConfig, username, password):
     if journeyConfig["departureStation"] == "":
         raise ValueError(
-            "Please set the journey.departureStation property in config.json")
+            "Please set the departureStation environment variable")
 
     if username == "" or password == "":
         raise ValueError(
-            "Please complete the rtt_username and rtt_password sections of your config.json file")
+            "Please complete the transportApi_rttUsername and transportApi_rttPassword environment variables")
 
     departureStation = journeyConfig["departureStation"]
     destinationStation = journeyConfig["destinationStation"]
@@ -29,12 +30,18 @@ def loadDeparturesForStationRTT(journeyConfig, username, password):
     r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
     data = r.json()
 
+    logging.warn(data)
+
     # Need to abbreviate the station names (perhaps)
-    for item in data["services"]:
-        for locItem in item["locationDetail"]["origin"]:
-            locItem["description"] = abbrStation(journeyConfig, locItem["description"])
-        for locItem in item["locationDetail"]["destination"]:
-            locItem["description"] = abbrStation(journeyConfig, locItem["description"])
+    if data["services"]:
+        for item in data["services"]:
+            logging.warn(item)
+            for locItem in item["locationDetail"]["origin"]:
+                logging.warn(locItem)
+                locItem["description"] = abbrStation(journeyConfig, locItem["description"])
+            for locItem in item["locationDetail"]["destination"]:
+                logging.warn(locItem)
+                locItem["description"] = abbrStation(journeyConfig, locItem["description"])
     
     return data["services"], data["location"]["name"]
 
@@ -69,6 +76,34 @@ def loadDeparturesForStation(journeyConfig, appId, apiKey):
         raise ValueError(data["error"])
 
     return data["departures"]["all"], data["station_name"]
+
+
+def loadDestinationsForDepartureRtt(journeyConfig, serviceId, serviceDate, username, password):
+
+    URL = f"https://api.rtt.io/api/v1/json/service/{serviceId}/{serviceDate}"
+    r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
+    data = r.json()
+
+    foundDepartureStation = False
+    for item in list(data["locations"]):
+        if item["crs"] == journeyConfig["departureStation"]:
+            foundDepartureStation = True
+
+        if foundDepartureStation == False:
+            data["locations"].remove(item)
+            continue
+
+        item["description"] = abbrStation(journeyConfig, item["description"])
+
+    if "error" in data:
+        raise ValueError(data["error"])
+
+    departureDestinationList = list(map(lambda x: x["description"], data["locations"]))[1:]
+    
+    if len(departureDestinationList) == 1:
+        departureDestinationList[0] = departureDestinationList[0] + ' only.'
+
+    return departureDestinationList
 
 
 def loadDestinationsForDeparture(journeyConfig, timetableUrl):

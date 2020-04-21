@@ -9,7 +9,7 @@ from timeloop import Timeloop
 from datetime import datetime
 from PIL import ImageFont, Image
 
-from trains import loadDeparturesForStation, loadDestinationsForDeparture
+from trains import loadDeparturesForStation, loadDestinationsForDeparture, loadDeparturesForStationRtt, loadDestinationsForDepartureRtt
 
 from luma.core.interface.serial import spi
 from luma.core.render import canvas
@@ -134,22 +134,33 @@ def renderDots(draw, width, height):
 
 
 def loadData(apiConfig, journeyConfig):
+    global isRtt
+
     runHours = [int(x) for x in apiConfig['operatingHours'].split('-')]
     if isRun(runHours[0], runHours[1]) == False:
         return False, False, journeyConfig['outOfHoursName']
 
-    if apiConfig['useRtt']:
-        departures, stationName = loadDeparturesForStationRTT(
+    if isRtt:
+        departures, stationName = loadDeparturesForStationRtt(
             journeyConfig, apiConfig["rttUsername"], apiConfig["rttPassword"])
     else:
         departures, stationName = loadDeparturesForStation(
             journeyConfig, apiConfig["appId"], apiConfig["apiKey"])
 
+    # No departures due! Display the "Welcome To..." message
     if len(departures) == 0:
         return False, False, stationName
 
-    firstDepartureDestinations = loadDestinationsForDeparture(
-        journeyConfig, departures[0]["service_timetable"]["id"])
+    if isRtt:
+        serviceUid = departures[0]["serviceUid"]
+        serviceDate = departures[0]["runDate"].replace("-","/")
+
+        firstDepartureDestinations = loadDestinationsForDepartureRtt(
+            journeyConfig, serviceUid, serviceDate, apiConfig["rttUsername"], apiConfig["rttPassword"])
+
+    else:
+        firstDepartureDestinations = loadDestinationsForDeparture(
+            journeyConfig, departures[0]["service_timetable"]["id"])
 
     return departures, firstDepartureDestinations, stationName
 
@@ -278,10 +289,14 @@ try:
     stationRenderCount = 0
     pauseCount = 0
     loop_count = 0
+    isRtt = (config["transportApi"]['apiType'] == "RTT")
 
     regulator = framerate_regulator(fps=10)
 
     data = loadData(config["transportApi"], config["journey"])
+    # TODO: Debugging!
+    logging.warning(data)
+
     if data[0] == False:
         virtual = drawBlankSignage(
             device, width=widgetWidth, height=widgetHeight, departureStation=data[2])

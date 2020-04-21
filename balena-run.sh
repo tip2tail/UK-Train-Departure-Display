@@ -9,7 +9,7 @@ if [ ! -f config.json ]; then
   jq .transportApi.appId=\""${transportApi_appId}"\" config.json | sponge config.json
   jq .transportApi.apiKey=\""${transportApi_apiKey}"\" config.json | sponge config.json
   jq .transportApi.operatingHours=\""${transportApi_operatingHours}"\" config.json | sponge config.json
-  jq .transportApi.useRtt=\""${transportApi_useRtt}"\" config.json | sponge config.json
+  jq .transportApi.apiType=\""${transportApi_apiType}"\" config.json | sponge config.json
   jq .transportApi.rttUsername=\""${transportApi_rttUsername}"\" config.json | sponge config.json
   jq .transportApi.rttPassword=\""${transportApi_rttPassword}"\" config.json | sponge config.json
 fi
