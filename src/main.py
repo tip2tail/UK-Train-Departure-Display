@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import logging
 
 from datetime import timedelta
 from timeloop import Timeloop
@@ -106,9 +107,9 @@ def renderTime(draw, width, height):
     w2, h2 = draw.textsize(":00", fontBoldTall)
 
     draw.text(((width - w1 - w2) / 2, 0), text="{}:{}".format(hour, minute),
-              font=fontBoldLarge, fill="yellow")
+              font=fontBoldLarge, fill="red")
     draw.text((((width - w1 - w2) / 2) + w1, 5), text=":{}".format(second),
-              font=fontBoldTall, fill="yellow")
+              font=fontBoldTall, fill="white")
 
 
 def renderWelcomeTo(xOffset):
@@ -122,14 +123,14 @@ def renderWelcomeTo(xOffset):
 def renderDepartureStation(departureStation, xOffset):
     def draw(draw, width, height):
         text = departureStation
-        draw.text((int(xOffset), 0), text=text, font=fontBold, fill="yellow")
+        draw.text((int(xOffset), 0), text=text, font=fontBold, fill="blue")
 
     return draw
 
 
 def renderDots(draw, width, height):
     text = ".  .  ."
-    draw.text((0, 0), text=text, font=fontBold, fill="yellow")
+    draw.text((0, 0), text=text, font=fontBold, fill="blue")
 
 
 def loadData(apiConfig, journeyConfig):
@@ -137,8 +138,12 @@ def loadData(apiConfig, journeyConfig):
     if isRun(runHours[0], runHours[1]) == False:
         return False, False, journeyConfig['outOfHoursName']
 
-    departures, stationName = loadDeparturesForStation(
-        journeyConfig, apiConfig["appId"], apiConfig["apiKey"])
+    if apiConfig['useRtt']:
+        departures, stationName = loadDeparturesForStationRTT(
+            journeyConfig, apiConfig["rttUsername"], apiConfig["rttPassword"])
+    else:
+        departures, stationName = loadDeparturesForStation(
+            journeyConfig, apiConfig["appId"], apiConfig["apiKey"])
 
     if len(departures) == 0:
         return False, False, stationName

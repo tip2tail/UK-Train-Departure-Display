@@ -10,6 +10,9 @@
   "transportApi": {
     "appId": "",
     "apiKey": "",
-    "operatingHours": "0-23"
+    "operatingHours": "0-23",
+    "useRtt": false,
+    "rttUsername": "",
+    "rttPassword": ""
   }
 }

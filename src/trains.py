@@ -30,9 +30,11 @@ def loadDeparturesForStationRTT(journeyConfig, username, password):
     data = r.json()
 
     # Need to abbreviate the station names (perhaps)
-    data["location"]["name"] = abbrStation(journeyConfig, data["location"]["name"])
-    if "filter" in data and "destination" in data["filter"]:
-        data["filter"]["destination"["name"] = abbrStation(journeyConfig, data["filter"]["destination"["name"])
+    for item in data["services"]:
+        for locItem in item["locationDetail"]["origin"]:
+            locItem["description"] = abbrStation(journeyConfig, locItem["description"])
+        for locItem in item["locationDetail"]["destination"]:
+            locItem["description"] = abbrStation(journeyConfig, locItem["description"])
     
     return data["services"], data["location"]["name"]
 
