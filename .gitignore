@@ -1,2 +1,3 @@
 ._DS_Store
 config.json
+src/__pycache__

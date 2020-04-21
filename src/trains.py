@@ -2,11 +2,40 @@ import os
 import requests
 import json
 
+from requests.auth import HTTPBasicAuth
+
 def abbrStation(journeyConfig, inputStr):
     dict = journeyConfig['stationAbbr']
     for key in dict.keys():
         inputStr = inputStr.replace(key, dict[key])
     return inputStr
+
+def loadDeparturesForStationRTT(journeyConfig, username, password):
+    if journeyConfig["departureStation"] == "":
+        raise ValueError(
+            "Please set the journey.departureStation property in config.json")
+
+    if username == "" or password == "":
+        raise ValueError(
+            "Please complete the rtt_username and rtt_password sections of your config.json file")
+
+    departureStation = journeyConfig["departureStation"]
+    destinationStation = journeyConfig["destinationStation"]
+    if (destinationStation == ""):
+        URL = f"https://api.rtt.io/api/v1/json/search/{departureStation}"
+    else:
+        URL = f"https://api.rtt.io/api/v1/json/search/{departureStation}/to/{destinationStation}"
+        
+    r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
+    data = r.json()
+
+    # Need to abbreviate the station names (perhaps)
+    data["location"]["name"] = abbrStation(journeyConfig, data["location"]["name"])
+    if "filter" in data and "destination" in data["filter"]:
+        data["filter"]["destination"["name"] = abbrStation(journeyConfig, data["filter"]["destination"["name"])
+    
+    return data["services"], data["location"]["name"]
+
 
 def loadDeparturesForStation(journeyConfig, appId, apiKey):
     if journeyConfig["departureStation"] == "":

@@ -81,6 +81,7 @@ def renderCallingAt(draw, width, height):
 def renderStations(stations):
     def drawText(draw, width, height):
         global stationRenderCount, pauseCount
+        pauseCount = 0
 
         if(len(stations) == stationRenderCount - 5):
             stationRenderCount = 0
