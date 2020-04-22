@@ -1,7 +1,6 @@
 import os
 import requests
 import json
-import logging
 
 from requests.auth import HTTPBasicAuth
 
@@ -30,17 +29,12 @@ def loadDeparturesForStationRtt(journeyConfig, username, password):
     r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
     data = r.json()
 
-    logging.warn(data)
-
     # Need to abbreviate the station names (perhaps)
     if data["services"]:
         for item in data["services"]:
-            logging.warn(item)
             for locItem in item["locationDetail"]["origin"]:
-                logging.warn(locItem)
                 locItem["description"] = abbrStation(journeyConfig, locItem["description"])
             for locItem in item["locationDetail"]["destination"]:
-                logging.warn(locItem)
                 locItem["description"] = abbrStation(journeyConfig, locItem["description"])
     
     return data["services"], data["location"]["name"]

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Creates a config.json file based on the ENV variables set in the balena interface for your app/device
 if [ ! -f config.json ]; then
   cp config.sample.json config.json
   jq .journey.departureStation=\""${departureStation}"\" config.json | sponge config.json
@@ -14,4 +15,5 @@ if [ ! -f config.json ]; then
   jq .transportApi.rttPassword=\""${transportApi_rttPassword}"\" config.json | sponge config.json
 fi
 
+# Run the application
 python ./src/main.py

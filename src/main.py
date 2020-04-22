@@ -19,6 +19,12 @@ from luma.core.sprite_system import framerate_regulator
 
 from open import isRun
 
+def log(heading, message):
+    logging.warning(heading)
+    logging.warning(message)
+    logging.warning("===========================")
+
+
 def loadConfig():
     with open('config.json', 'r') as jsonConfig:
         data = json.load(jsonConfig)
@@ -36,8 +42,15 @@ def makeFont(name, size):
 
 
 def renderDestination(departure, font):
-    departureTime = departure["aimed_departure_time"]
-    destinationName = departure["destination_name"]
+    global isRtt
+
+    if isRtt:
+        locDetail = departure["locationDetail"]
+        departureTime = locDetail["gbttBookedDeparture"]
+        destinationName = locDetail["destination"][0]["description"]
+    else:
+        departureTime = departure["aimed_departure_time"]
+        destinationName = departure["destination_name"]
 
     def drawText(draw, width, height):
         train = f"{departureTime}  {destinationName}"
@@ -48,16 +61,30 @@ def renderDestination(departure, font):
 
 def renderServiceStatus(departure):
     def drawText(draw, width, height):
+        global isRtt
         train = ""
 
-        if departure["status"] == "CANCELLED":
-            train = "Cancelled"
-        else:
-            if isinstance(departure["expected_departure_time"], str):
-                train = 'Exp '+departure["expected_departure_time"]
+        if isRtt:
+            locDetail = departure["locationDetail"]
 
-            if departure["aimed_departure_time"] == departure["expected_departure_time"]:
-                train = "On time"
+            if "cancelReasonCode" in locDetail and isinstance(locDetail["cancelReasonCode"], str):
+                train = "Cancelled"
+            else:
+                if "realtimeDeparture" in locDetail and isinstance(locDetail["realtimeDeparture"], str):
+                    train = 'Exp ' + locDetail["realtimeDeparture"]
+
+                if locDetail["gbttBookedDeparture"] == locDetail["realtimeDeparture"]:
+                    train = "On time"
+
+        else:
+            if departure["status"] == "CANCELLED":
+                train = "Cancelled"
+            else:
+                if isinstance(departure["expected_departure_time"], str):
+                    train = 'Exp '+departure["expected_departure_time"]
+
+                if departure["aimed_departure_time"] == departure["expected_departure_time"]:
+                    train = "On time"
 
         w, h = draw.textsize(train, font)
         draw.text((width-w,0), text=train, font=font, fill="yellow")
@@ -66,11 +93,23 @@ def renderServiceStatus(departure):
 
 def renderPlatform(departure):
     def drawText(draw, width, height):
-        if departure["mode"] == "bus":
-            draw.text((0, 0), text="BUS", font=font, fill="yellow")
+        global isRtt
+
+        if isRtt:
+            log("serviceType", departure["serviceType"])
+            log("locationDetail", departure["locationDetail"])
+            if departure["serviceType"] == "bus":
+                draw.text((0, 0), text="BUS", font=font, fill="yellow")
+            else:
+                if "platform" in departure["locationDetail"] and isinstance(departure["locationDetail"]["platform"], str):
+                    draw.text((0, 0), text="Plat "+departure["locationDetail"]["platform"], font=font, fill="yellow")
         else:
-            if isinstance(departure["platform"], str):
-                draw.text((0, 0), text="Plat "+departure["platform"], font=font, fill="yellow")
+            if departure["mode"] == "bus":
+                draw.text((0, 0), text="BUS", font=font, fill="yellow")
+            else:
+                if isinstance(departure["platform"], str):
+                    draw.text((0, 0), text="Plat "+departure["platform"], font=font, fill="yellow")
+        
     return drawText
 
 
@@ -107,9 +146,9 @@ def renderTime(draw, width, height):
     w2, h2 = draw.textsize(":00", fontBoldTall)
 
     draw.text(((width - w1 - w2) / 2, 0), text="{}:{}".format(hour, minute),
-              font=fontBoldLarge, fill="red")
+              font=fontBoldLarge, fill="yellow")
     draw.text((((width - w1 - w2) / 2) + w1, 5), text=":{}".format(second),
-              font=fontBoldTall, fill="white")
+              font=fontBoldTall, fill="yellow")
 
 
 def renderWelcomeTo(xOffset):
@@ -123,14 +162,14 @@ def renderWelcomeTo(xOffset):
 def renderDepartureStation(departureStation, xOffset):
     def draw(draw, width, height):
         text = departureStation
-        draw.text((int(xOffset), 0), text=text, font=fontBold, fill="blue")
+        draw.text((int(xOffset), 0), text=text, font=fontBold, fill="yellow")
 
     return draw
 
 
 def renderDots(draw, width, height):
     text = ".  .  ."
-    draw.text((0, 0), text=text, font=fontBold, fill="blue")
+    draw.text((0, 0), text=text, font=fontBold, fill="yellow")
 
 
 def loadData(apiConfig, journeyConfig):
@@ -208,6 +247,9 @@ def drawSignage(device, width, height, data):
     callingAt = "Calling at:"
 
     departures, firstDepartureDestinations, departureStation = data
+    logging.info("firstDepartureDestinations")
+    logging.info(firstDepartureDestinations)
+    # logging.warning(firstDepartureDestinations)
 
     with canvas(device) as draw:
         w, h = draw.textsize(callingAt, font)
@@ -294,31 +336,28 @@ try:
     regulator = framerate_regulator(fps=10)
 
     data = loadData(config["transportApi"], config["journey"])
-    # TODO: Debugging!
-    logging.warning(data)
-
     if data[0] == False:
         virtual = drawBlankSignage(
             device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
     else:
         virtual = drawSignage(device, width=widgetWidth,
-                              height=widgetHeight, data=data)
+                            height=widgetHeight, data=data)
+        
 
     timeAtStart = time.time()
     timeNow = time.time()
 
     while True:
         with regulator:
-            if(timeNow - timeAtStart >= config["refreshTime"]):
-                data = loadData(config["transportApi"], config["journey"])
+            if isRtt:
+                a = 1
+            else:
                 if data[0] == False:
                     virtual = drawBlankSignage(
                         device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
                 else:
                     virtual = drawSignage(device, width=widgetWidth,
-                                          height=widgetHeight, data=data)
-
-                timeAtStart = time.time()
+                                        height=widgetHeight, data=data)
 
             timeNow = time.time()
             virtual.refresh()
