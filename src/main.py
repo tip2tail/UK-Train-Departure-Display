@@ -8,6 +8,8 @@ from datetime import timedelta
 from timeloop import Timeloop
 from datetime import datetime
 from PIL import ImageFont, Image
+from os.path import expanduser
+from pathlib import Path
 
 from trains import loadDeparturesForStation, loadDestinationsForDeparture, loadDeparturesForStationRtt, loadDestinationsForDepartureRtt
 
@@ -19,11 +21,15 @@ from luma.core.sprite_system import framerate_regulator
 
 from open import isRun
 
-def log(heading, message):
-    logging.warning(heading)
-    logging.warning(message)
-    logging.warning("===========================")
-
+def log(heading, message, isError=False):
+    if (isError):
+        logging.error(heading)
+        logging.error(message)
+        logging.error("===========================")
+    else:
+        logging.debug(heading)
+        logging.debug(message)
+        logging.debug("===========================")
 
 def loadConfig():
     with open('config.json', 'r') as jsonConfig:
@@ -316,6 +322,17 @@ def drawSignage(device, width, height, data):
 
 
 try:
+
+    # Start the logging
+    homeDir = expanduser("~")
+    Path(f"{homeDir}/logs/trains").mkdir(parents=True, exist_ok=True)
+    logPath = f'{homeDir}/logs/trains/train-display.log'
+    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
+        logging.basicConfig(filename=logPath, level=logging.DEBUG)
+    else:
+        logging.basicConfig(filename=logPath, level=logging.WARNING)
+
+    # Load the cofig files
     config = loadConfig()
 
     serial = spi()
@@ -367,4 +384,4 @@ except KeyboardInterrupt:
 except ValueError as err:
     print(f"Error: {err}")
 except KeyError as err:
-    print(f"Error: Please ensure the {err} environment variable is set")
+    print(f"Error: Please ensure the {err} configuration value is set in config.json.")
