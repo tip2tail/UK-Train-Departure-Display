@@ -349,15 +349,16 @@ try:
 
     while True:
         with regulator:
-            if isRtt:
-                a = 1
-            else:
+            if(timeNow - timeAtStart >= config["refreshTime"]):
+                data = loadData(config["transportApi"], config["journey"])
                 if data[0] == False:
                     virtual = drawBlankSignage(
                         device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
                 else:
                     virtual = drawSignage(device, width=widgetWidth,
-                                        height=widgetHeight, data=data)
+                                          height=widgetHeight, data=data)
+
+                timeAtStart = time.time()
 
             timeNow = time.time()
             virtual.refresh()
