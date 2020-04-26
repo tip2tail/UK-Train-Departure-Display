@@ -25,10 +25,23 @@ from open import isRun
 # ============================================================================================
 stationRenderCount = 0
 pauseCount = 0
-isRtt
+isRtt = False
 
 # Routines
 # ============================================================================================
+
+def icon(name):
+    switcher = {
+        'clock': u'\uf017',
+        'bus': u'\uf55e',
+        'train': u'\uf238',
+        'subway': u'\uf239',
+    }
+    value = switcher.get(name, None)
+    if (value == None):
+        raise ValueError("Invalid icon name requested")
+    return value
+
 
 def getLogDirPath():
     homeDir = expanduser("~")
@@ -122,8 +135,11 @@ def renderDestination(departure, font):
 
     if isRtt:
         locDetail = departure["locationDetail"]
+        headcode = ""
+        if config['showHeadcode'] == True:
+            headcode = f" ({departure['trainIdentity']})"
         departureTime = convertRttTime(locDetail["gbttBookedDeparture"])
-        destinationName = locDetail["destination"][0]["description"]
+        destinationName = f"{locDetail['destination'][0]['description']}{headcode}"
     else:
         departureTime = departure["aimed_departure_time"]
         destinationName = departure["destination_name"]
@@ -233,12 +249,15 @@ def renderTime(draw, width, height):
         else:
             dataSource = 'tAPI: '
 
-    w1, _unused_h1 = draw.textsize(f"{dataSource}{hour}:{minute}", fontBoldLarge)
+    w3, _unused_h3 = draw.textsize(f"{icon('clock')} ", fontAwesomeSmall)
+    w1, _unused_h1 = draw.textsize(f" {dataSource}{hour}:{minute}", fontBoldLarge)
     w2, _unused_h2 = draw.textsize(":00", fontBoldTall)
 
-    draw.text(((width - w1 - w2) / 2, 0), text=f"{dataSource}{hour}:{minute}",
+    draw.text(((width - w1 - w2 - w3) / 2, 0), text=f"{icon('clock')} ",
+            font=fontAwesomeSmall, fill="yellow")
+    draw.text((((width - w1 - w2 - w3) / 2) + w3, 0), text=f"{dataSource}{hour}:{minute}",
             font=fontBoldLarge, fill="yellow")
-    draw.text((((width - w1 - w2) / 2) + w1, 5), text=f":{second}",
+    draw.text((((width - w1 - w2 - w3) / 2) + (w1 + w3), 5), text=f":{second}",
             font=fontBoldTall, fill="yellow")
 
 
@@ -286,7 +305,7 @@ def loadData(apiConfig, journeyConfig):
         serviceDate = departures[0]["runDate"].replace("-","/")
 
         firstDepartureDestinations = loadDestinationsForDepartureRtt(
-            journeyConfig, serviceUid, serviceDate, apiConfig["rttUsername"], apiConfig["rttPassword"])
+            journeyConfig, serviceUid, serviceDate, apiConfig["rttUsername"], apiConfig["rttPassword"], config["showTOC"])
 
     else:
         firstDepartureDestinations = loadDestinationsForDeparture(
@@ -444,6 +463,8 @@ try:
     fontBold = makeFont("Dot Matrix Bold.ttf", 10)
     fontBoldTall = makeFont("Dot Matrix Bold Tall.ttf", 10)
     fontBoldLarge = makeFont("Dot Matrix Bold.ttf", 20)
+    fontAwesomeSmall = makeFont("FontAwesome.otf", 10)
+    fontAwesomeLarge = makeFont("FontAwesome.otf", 20)
 
     widgetWidth = 256
     widgetHeight = 64

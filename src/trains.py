@@ -76,7 +76,7 @@ def loadDeparturesForStation(journeyConfig, appId, apiKey):
     return data["departures"]["all"], data["station_name"]
 
 
-def loadDestinationsForDepartureRtt(journeyConfig, serviceId, serviceDate, username, password):
+def loadDestinationsForDepartureRtt(journeyConfig, serviceId, serviceDate, username, password, showCompany):
 
     URL = f"https://api.rtt.io/api/v1/json/service/{serviceId}/{serviceDate}"
     r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
@@ -100,6 +100,9 @@ def loadDestinationsForDepartureRtt(journeyConfig, serviceId, serviceDate, usern
     
     if len(departureDestinationList) == 1:
         departureDestinationList[0] = departureDestinationList[0] + ' only.'
+
+    if (showCompany):
+        departureDestinationList.append(f" ({data['atocName']} service)")
 
     return departureDestinationList
 

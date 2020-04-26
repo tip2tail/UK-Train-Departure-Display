@@ -14,5 +14,7 @@
     "apiType": "Transport",
     "rttUsername": "",
     "rttPassword": ""
-  }
+  },
+  "showHeadcode": false,
+  "showTOC": false
 }
