@@ -20,11 +20,15 @@ def loadDeparturesForStationRtt(journeyConfig, username, password):
             "Please complete the transportApi_rttUsername and transportApi_rttPassword environment variables")
 
     departureStation = journeyConfig["departureStation"]
-    destinationStation = journeyConfig["destinationStation"]
-    if (destinationStation == ""):
-        URL = f"https://api.rtt.io/api/v1/json/search/{departureStation}"
-    else:
+    destinationStation = ''
+    if ("destinationStation" in journeyConfig and
+        journeyConfig["destinationStation"] != '' and
+        journeyConfig["destinationStation"] != None):
+        destinationStation = journeyConfig["destinationStation"]
         URL = f"https://api.rtt.io/api/v1/json/search/{departureStation}/to/{destinationStation}"
+    else:
+        URL = f"https://api.rtt.io/api/v1/json/search/{departureStation}"
+        
         
     r = requests.get(url=URL, auth=HTTPBasicAuth(username,password))
     data = r.json()
