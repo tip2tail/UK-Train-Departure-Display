@@ -21,79 +21,6 @@ from luma.core.sprite_system import framerate_regulator
 
 from open import isRun
 
-# Main program
-# ============================================================================================
-try:
-
-    # Debug mode off by default
-    isDebugMode = False
-
-    # Start the logging
-    homeDir = expanduser("~")
-    Path(f"{homeDir}/logs/trains").mkdir(parents=True, exist_ok=True)
-    logPath = f'{homeDir}/logs/trains/train-display.log'
-    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
-        isDebugMode = True
-        logging.basicConfig(filename=logPath, level=logging.DEBUG)
-        log("MODE", "Debug Mode Activated")
-    else:
-        logging.basicConfig(filename=logPath, level=logging.WARNING)
-
-    # Load the cofig files
-    config = loadConfig()
-
-    serial = spi()
-    device = ssd1322(serial, mode="1", rotate=2)
-    font = makeFont("Dot Matrix Regular.ttf", 10)
-    fontBold = makeFont("Dot Matrix Bold.ttf", 10)
-    fontBoldTall = makeFont("Dot Matrix Bold Tall.ttf", 10)
-    fontBoldLarge = makeFont("Dot Matrix Bold.ttf", 20)
-
-    widgetWidth = 256
-    widgetHeight = 64
-
-    stationRenderCount = 0
-    pauseCount = 0
-    loop_count = 0
-    isRtt = (config["transportApi"]['apiType'] == "RTT")
-
-    regulator = framerate_regulator(fps=10)
-
-    data = loadData(config["transportApi"], config["journey"])
-    if data[0] == False:
-        virtual = drawBlankSignage(
-            device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
-    else:
-        virtual = drawSignage(device, width=widgetWidth,
-                            height=widgetHeight, data=data)
-        
-
-    timeAtStart = time.time()
-    timeNow = time.time()
-
-    while True:
-        with regulator:
-            if(timeNow - timeAtStart >= config["refreshTime"]):
-                data = loadData(config["transportApi"], config["journey"])
-                if data[0] == False:
-                    virtual = drawBlankSignage(
-                        device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
-                else:
-                    virtual = drawSignage(device, width=widgetWidth,
-                                          height=widgetHeight, data=data)
-
-                timeAtStart = time.time()
-
-            timeNow = time.time()
-            virtual.refresh()
-
-except KeyboardInterrupt:
-    pass
-except ValueError as err:
-    print(f"Error: {err}")
-except KeyError as err:
-    print(f"Error: Please ensure the {err} configuration value is set in config.json.")
-
 # Routines
 # ============================================================================================
 
@@ -420,3 +347,81 @@ def drawSignage(device, width, height, data):
     virtualViewport.add_hotspot(rowTime, (0, 50))
 
     return virtualViewport
+
+#
+#def convertRttTime(timeIn):
+    # TODO: Convert 0123 to 01:23
+#
+
+# Main program
+# ============================================================================================
+try:
+
+    # Debug mode off by default
+    isDebugMode = False
+
+    # Start the logging
+    homeDir = expanduser("~")
+    Path(f"{homeDir}/logs/trains").mkdir(parents=True, exist_ok=True)
+    logPath = f'{homeDir}/logs/trains/train-display.log'
+    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
+        isDebugMode = True
+        logging.basicConfig(filename=logPath, level=logging.DEBUG)
+        log("MODE", "Debug Mode Activated")
+    else:
+        logging.basicConfig(filename=logPath, level=logging.WARNING)
+
+    # Load the cofig files
+    config = loadConfig()
+
+    serial = spi()
+    device = ssd1322(serial, mode="1", rotate=2)
+    font = makeFont("Dot Matrix Regular.ttf", 10)
+    fontBold = makeFont("Dot Matrix Bold.ttf", 10)
+    fontBoldTall = makeFont("Dot Matrix Bold Tall.ttf", 10)
+    fontBoldLarge = makeFont("Dot Matrix Bold.ttf", 20)
+
+    widgetWidth = 256
+    widgetHeight = 64
+
+    stationRenderCount = 0
+    pauseCount = 0
+    loop_count = 0
+    isRtt = (config["transportApi"]['apiType'] == "RTT")
+
+    regulator = framerate_regulator(fps=10)
+
+    data = loadData(config["transportApi"], config["journey"])
+    if data[0] == False:
+        virtual = drawBlankSignage(
+            device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
+    else:
+        virtual = drawSignage(device, width=widgetWidth,
+                            height=widgetHeight, data=data)
+        
+
+    timeAtStart = time.time()
+    timeNow = time.time()
+
+    while True:
+        with regulator:
+            if(timeNow - timeAtStart >= config["refreshTime"]):
+                data = loadData(config["transportApi"], config["journey"])
+                if data[0] == False:
+                    virtual = drawBlankSignage(
+                        device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
+                else:
+                    virtual = drawSignage(device, width=widgetWidth,
+                                          height=widgetHeight, data=data)
+
+                timeAtStart = time.time()
+
+            timeNow = time.time()
+            virtual.refresh()
+
+except KeyboardInterrupt:
+    pass
+except ValueError as err:
+    print(f"Error: {err}")
+except KeyError as err:
+    print(f"Error: Please ensure the {err} configuration value is set in config.json.")
