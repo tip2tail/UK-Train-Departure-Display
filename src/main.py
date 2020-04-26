@@ -21,23 +21,90 @@ from luma.core.sprite_system import framerate_regulator
 
 from open import isRun
 
+# Declare Variables for Global
+# ============================================================================================
+stationRenderCount = 0
+pauseCount = 0
+isRtt
+
 # Routines
 # ============================================================================================
 
-def log(heading, message, isError=False):
-    if (isError):
-        logging.error(heading)
-        logging.error(message)
-        logging.error("===========================")
+def getLogDirPath():
+    homeDir = expanduser("~")
+    logPath = f"{homeDir}/logs/piDepartures"
+    Path(logPath).mkdir(parents=True, exist_ok=True)
+    return logPath
+
+
+def tidyLogFiles():
+    logDir = getLogDirPath()
+    listFiles = os.listdir(logDir)
+    fullPath = [f"{logDir}/{x}" for x in listFiles]
+    fullPath.sort(key=os.path.getctime)
+
+    # We want to keep 14 files
+    fileCount = len(listFiles)
+    removeFileCount = fileCount - 14
+    removeIndex = 0
+    while removeIndex < (removeFileCount - 1):
+        pop = fullPath.pop(removeIndex)
+        os.remove(pop)
+        removeIndex += 1
+
+
+def getYMD():
+    return datetime.today().strftime('%Y-%m-%d')
+
+
+def openLogFile():
+    global logFileDate
+    global isDebugMode
+    global logger
+
+    # Remove old files
+    tidyLogFiles()
+
+    logFileDate = getYMD()
+    logPath = f'{getLogDirPath()}/{logFileDate}.log'
+
+    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
+        isDebugMode = True
+        logLevel = logging.DEBUG
     else:
-        logging.debug(heading)
-        logging.debug(message)
-        logging.debug("===========================")
+        logLevel = logging.WARNING
+
+    fileh = logging.FileHandler(logPath, 'a')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fileh.setFormatter(formatter)
+    fileh.setLevel(logLevel)
+
+    logger = logging.getLogger('piDepartures')      # piDepartures logger
+    for hdlr in logger.handlers[:]:   # Remove all old handlers
+        logger.removeHandler(hdlr)
+    logger.addHandler(fileh)          # Set the new handler
+    logger.setLevel(logLevel)
+
+
+def log(heading, message, isError=False):
+    global logFileDate
+    global logger
+
+    if (logFileDate != getYMD()):
+        # Need to reopen the log file
+        openLogFile()
+
+    if (isError):
+        logger.error(f'{heading} -- {message}')
+    else:
+        logger.debug(f'{heading} -- {message}')
+
 
 def loadConfig():
     with open('config.json', 'r') as jsonConfig:
         data = json.load(jsonConfig)
         return data
+
 
 def makeFont(name, size):
     font_path = os.path.abspath(
@@ -55,7 +122,7 @@ def renderDestination(departure, font):
 
     if isRtt:
         locDetail = departure["locationDetail"]
-        departureTime = locDetail["gbttBookedDeparture"]
+        departureTime = convertRttTime(locDetail["gbttBookedDeparture"])
         destinationName = locDetail["destination"][0]["description"]
     else:
         departureTime = departure["aimed_departure_time"]
@@ -84,7 +151,7 @@ def renderServiceStatus(departure):
                     hasRealtimeDeparture = True
 
                 if hasRealtimeDeparture and isinstance(locDetail["realtimeDeparture"], str):
-                    train = 'Exp ' + locDetail["realtimeDeparture"]
+                    train = 'Exp ' + convertRttTime(locDetail["realtimeDeparture"])
 
                 if not hasRealtimeDeparture or locDetail["gbttBookedDeparture"] == locDetail["realtimeDeparture"]:
                     train = "On time"
@@ -262,7 +329,8 @@ def drawBlankSignage(device, width, height, departureStation):
 
 
 def drawSignage(device, width, height, data):
-    global stationRenderCount, pauseCount
+    global stationRenderCount
+    global pauseCount
 
     device.clear()
 
@@ -300,7 +368,7 @@ def drawSignage(device, width, height, data):
     rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=100)
     # Scrolling stations
     rowTwoB = snapshot(width - callingWidth, 10,
-                       renderStations(", ".join(firstDepartureDestinations)), interval=0.1)
+                       renderStations(", ".join(firstDepartureDestinations)), interval=0.01)
 
     # 2nd Departure
     if(len(departures) > 1):
@@ -348,28 +416,24 @@ def drawSignage(device, width, height, data):
 
     return virtualViewport
 
-#
-#def convertRttTime(timeIn):
-    # TODO: Convert 0123 to 01:23
-#
+
+def convertRttTime(timeIn):
+    timeOut = f'{timeIn[0:2]}:{timeIn[2:4]}'
+    return timeOut
+
 
 # Main program
 # ============================================================================================
 try:
 
-    # Debug mode off by default
+    # Debug mode off by default, start the logfile
     isDebugMode = False
-
-    # Start the logging
-    homeDir = expanduser("~")
-    Path(f"{homeDir}/logs/trains").mkdir(parents=True, exist_ok=True)
-    logPath = f'{homeDir}/logs/trains/train-display.log'
-    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
-        isDebugMode = True
-        logging.basicConfig(filename=logPath, level=logging.DEBUG)
-        log("MODE", "Debug Mode Activated")
-    else:
-        logging.basicConfig(filename=logPath, level=logging.WARNING)
+    logFileDate = None
+    logger = None
+    openLogFile()
+    log("STARTUP","================================")
+    log("STARTUP","New piDepartures Session Started")
+    log("STARTUP","================================")
 
     # Load the cofig files
     config = loadConfig()
@@ -386,12 +450,15 @@ try:
 
     stationRenderCount = 0
     pauseCount = 0
-    loop_count = 0
-    isRtt = (config["transportApi"]['apiType'] == "RTT")
+    isRtt = (config['transportApi']['apiType'] == "RTT")
+    if isRtt:
+        log("SOURCE", "Using RealtimeTrains API")
+    else:
+        log("SOURCE", "Using TransportApi")
 
     regulator = framerate_regulator(fps=10)
 
-    data = loadData(config["transportApi"], config["journey"])
+    data = loadData(config['transportApi'], config['journey'])
     if data[0] == False:
         virtual = drawBlankSignage(
             device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
@@ -405,8 +472,10 @@ try:
 
     while True:
         with regulator:
-            if(timeNow - timeAtStart >= config["refreshTime"]):
-                data = loadData(config["transportApi"], config["journey"])
+            if(timeNow - timeAtStart >= config['refreshTime']):
+                log("REFRESH", f"Full Refresh after {config['refreshTime']} seconds")
+
+                data = loadData(config['transportApi'], config['journey'])
                 if data[0] == False:
                     virtual = drawBlankSignage(
                         device, width=widgetWidth, height=widgetHeight, departureStation=data[2])
@@ -422,6 +491,8 @@ try:
 except KeyboardInterrupt:
     pass
 except ValueError as err:
+    log("VALUE_ERROR", err)
     print(f"Error: {err}")
 except KeyError as err:
+    log("KEY_ERROR", err)
     print(f"Error: Please ensure the {err} configuration value is set in config.json.")
