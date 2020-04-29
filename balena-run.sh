@@ -12,6 +12,7 @@ if [ ! -f config.json ]; then
   jq .transportApi.operatingHours=\""${transportApi_operatingHours}"\" config.json | sponge config.json
   jq .transportApi.apiType=\""${transportApi_apiType}"\" config.json | sponge config.json
   jq .transportApi.rttUsername=\""${transportApi_rttUsername}"\" config.json | sponge config.json
+  jq .transportApi.rttPassword=\""${transportApi_rttPassword}"\" config.json | sponge config.json
   jq .showHeadcode=\""${showHeadcode}"\" config.json | sponge config.json
   jq .showTOC=\""${showTOC}"\" config.json | sponge config.json
 fi
