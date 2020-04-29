@@ -11,7 +11,8 @@ from PIL import ImageFont, Image
 from os.path import expanduser
 from pathlib import Path
 
-from trains import loadDeparturesForStation, loadDestinationsForDeparture, loadDeparturesForStationRtt, loadDestinationsForDepartureRtt
+from trains import loadDeparturesForStation, loadDestinationsForDeparture
+from trains import loadDeparturesForStationRtt, loadDestinationsForDepartureRtt
 
 from luma.core.interface.serial import spi
 from luma.core.render import canvas
@@ -79,42 +80,44 @@ def openLogFile():
     tidyLogFiles()
 
     logFileDate = getYMD()
-    logPath = f'{getLogDirPath()}/{logFileDate}.log'
+    logPath = f"{getLogDirPath()}/{logFileDate}.log"
 
-    if (len(sys.argv) > 1 and sys.argv[1] == 'debug'):
+    if (len(sys.argv) > 1 and sys.argv[1] == "debug"):
         isDebugMode = True
         logLevel = logging.DEBUG
     else:
         logLevel = logging.WARNING
 
     fileh = logging.FileHandler(logPath, 'a')
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     fileh.setFormatter(formatter)
     fileh.setLevel(logLevel)
 
-    logger = logging.getLogger('piDepartures')      # piDepartures logger
+    logger = logging.getLogger("piDepartures")      # piDepartures logger
     for hdlr in logger.handlers[:]:   # Remove all old handlers
         logger.removeHandler(hdlr)
     logger.addHandler(fileh)          # Set the new handler
     logger.setLevel(logLevel)
 
-
-def log(heading, message, isError=False):
+def log(heading, message, isError=False, forceLog=False):
     global logFileDate
     global logger
 
     if (logFileDate != getYMD()):
         # Need to reopen the log file
         openLogFile()
+        logger.warning("Logging file handle has been opened.")
 
-    if (isError):
-        logger.error(f'{heading} -- {message}')
+    if (forceLog):
+        logger.warning(f"{heading} -- {message}")
+    elif (isError):
+        logger.error(f"{heading} -- {message}")
     else:
-        logger.debug(f'{heading} -- {message}')
+        logger.debug(f"{heading} -- {message}")
 
 
 def loadConfig():
-    with open('config.json', 'r') as jsonConfig:
+    with open("config.json", "r") as jsonConfig:
         data = json.load(jsonConfig)
         return data
 
@@ -123,7 +126,7 @@ def makeFont(name, size):
     font_path = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
-            'fonts',
+            "fonts",
             name
         )
     )
@@ -134,15 +137,15 @@ def renderDestination(departure, font):
     global isRtt
 
     if isRtt:
-        locDetail = departure["locationDetail"]
+        locDetail = departure['locationDetail']
         headcode = ""
         if config['showHeadcode'] == True:
             headcode = f" ({departure['trainIdentity']})"
-        departureTime = convertRttTime(locDetail["gbttBookedDeparture"])
+        departureTime = convertRttTime(locDetail['gbttBookedDeparture'])
         destinationName = f"{locDetail['destination'][0]['description']}{headcode}"
     else:
-        departureTime = departure["aimed_departure_time"]
-        destinationName = departure["destination_name"]
+        departureTime = departure['aimed_departure_time']
+        destinationName = departure['destination_name']
 
     def drawText(draw, width, height):
         train = f"{departureTime}  {destinationName}"
@@ -159,31 +162,32 @@ def renderServiceStatus(departure):
         if isRtt:
             locDetail = departure["locationDetail"]
 
-            if "cancelReasonCode" in locDetail and isinstance(locDetail["cancelReasonCode"], str):
+            if 'cancelReasonCode' in locDetail and isinstance(locDetail['cancelReasonCode'], str):
                 train = "Cancelled"
             else:
                 hasRealtimeDeparture = False
-                if "realtimeDeparture" in locDetail:
+                if 'realtimeDeparture' in locDetail:
                     hasRealtimeDeparture = True
 
-                if hasRealtimeDeparture and isinstance(locDetail["realtimeDeparture"], str):
-                    train = 'Exp ' + convertRttTime(locDetail["realtimeDeparture"])
+                if hasRealtimeDeparture and isinstance(locDetail['realtimeDeparture'], str):
+                    train = f"Exp {convertRttTime(locDetail['realtimeDeparture'])}"
 
-                if not hasRealtimeDeparture or locDetail["gbttBookedDeparture"] == locDetail["realtimeDeparture"]:
+                if not hasRealtimeDeparture or locDetail['gbttBookedDeparture'] == locDetail['realtimeDeparture']:
                     train = "On time"
 
         else:
-            if departure["status"] == "CANCELLED":
+            if departure['status'] == "CANCELLED":
                 train = "Cancelled"
             else:
-                if isinstance(departure["expected_departure_time"], str):
-                    train = 'Exp '+departure["expected_departure_time"]
+                if isinstance(departure['expected_departure_time'], str):
+                    train = f"Exp {departure['expected_departure_time']}"
 
-                if departure["aimed_departure_time"] == departure["expected_departure_time"]:
+                if departure['aimed_departure_time'] == departure['expected_departure_time']:
                     train = "On time"
 
         w, _unused_h = draw.textsize(train, font)
         draw.text((width-w,0), text=train, font=font, fill="yellow")
+    
     return drawText
 
 
@@ -192,19 +196,19 @@ def renderPlatform(departure):
         global isRtt
 
         if isRtt:
-            log("serviceType", departure["serviceType"])
-            log("locationDetail", departure["locationDetail"])
-            if departure["serviceType"] == "bus":
-                draw.text((0, 0), text="BUS", font=font, fill="yellow")
+            log("serviceType", departure['serviceType'])
+            log("locationDetail", departure['locationDetail'])
+            if departure['serviceType'] == "bus":
+                draw.text((0, 0), text=icon("bus"), font=fontAwesomeSmall, fill="yellow")
             else:
-                if "platform" in departure["locationDetail"] and isinstance(departure["locationDetail"]["platform"], str):
-                    draw.text((0, 0), text="Plat "+departure["locationDetail"]["platform"], font=font, fill="yellow")
+                if 'platform' in departure['locationDetail'] and isinstance(departure['locationDetail']['platform'], str):
+                    draw.text((0, 0), text=f"Plat {departure['locationDetail']['platform']}", font=font, fill="yellow")
         else:
-            if departure["mode"] == "bus":
-                draw.text((0, 0), text="BUS", font=font, fill="yellow")
+            if departure['mode'] == "bus":
+                draw.text((0, 0), text=icon("bus"), font=fontAwesomeSmall, fill="yellow")
             else:
-                if isinstance(departure["platform"], str):
-                    draw.text((0, 0), text="Plat "+departure["platform"], font=font, fill="yellow")
+                if isinstance(departure['platform'], str):
+                    draw.text((0, 0), text=f"Plat {departure['platform']}", font=font, fill="yellow")
         
     return drawText
 
@@ -245,20 +249,30 @@ def renderTime(draw, width, height):
     dataSource = ''
     if isDebugMode:
         if isRtt:
-            dataSource = 'RTT: '
+            dataSource = "RTT: "
         else:
-            dataSource = 'tAPI: '
+            dataSource = "TAPI: "
 
-    w3, _unused_h3 = draw.textsize(f"{icon('clock')} ", fontAwesomeSmall)
+    w3, _unused_h3 = draw.textsize(icon("clock") + " ", fontAwesomeSmall)
     w1, _unused_h1 = draw.textsize(f" {dataSource}{hour}:{minute}", fontBoldLarge)
     w2, _unused_h2 = draw.textsize(":00", fontBoldTall)
 
-    draw.text(((width - w1 - w2 - w3) / 2, 0), text=f"{icon('clock')} ",
+    draw.text(((width - w1 - w2 - w3) / 2, 0), text=icon("clock") + " ",
             font=fontAwesomeSmall, fill="yellow")
     draw.text((((width - w1 - w2 - w3) / 2) + w3, 0), text=f"{dataSource}{hour}:{minute}",
             font=fontBoldLarge, fill="yellow")
     draw.text((((width - w1 - w2 - w3) / 2) + (w1 + w3), 5), text=f":{second}",
             font=fontBoldTall, fill="yellow")
+
+
+def buildScrollList(stationList, showTOC):
+    if (showTOC):
+        toc = stationList.pop()
+        returnVal = ", ".join(stationList) + " " + toc
+    else:
+        returnVal = ", ".join(stationList)
+    
+    return returnVal
 
 
 def renderWelcomeTo(xOffset):
@@ -285,31 +299,31 @@ def renderDots(draw, width, height):
 def loadData(apiConfig, journeyConfig):
     global isRtt
 
-    runHours = [int(x) for x in apiConfig['operatingHours'].split('-')]
+    runHours = [int(x) for x in apiConfig['operatingHours'].split("-")]
     if isRun(runHours[0], runHours[1]) == False:
         return False, False, journeyConfig['outOfHoursName']
 
     if isRtt:
         departures, stationName = loadDeparturesForStationRtt(
-            journeyConfig, apiConfig["rttUsername"], apiConfig["rttPassword"])
+            journeyConfig, apiConfig['rttUsername'], apiConfig['rttPassword'])
     else:
         departures, stationName = loadDeparturesForStation(
-            journeyConfig, apiConfig["appId"], apiConfig["apiKey"])
+            journeyConfig, apiConfig['appId'], apiConfig['apiKey'])
 
     # No departures due! Display the "Welcome To..." message
     if departures == None or len(departures) == 0:
         return False, False, stationName
 
     if isRtt:
-        serviceUid = departures[0]["serviceUid"]
-        serviceDate = departures[0]["runDate"].replace("-","/")
+        serviceUid = departures[0]['serviceUid']
+        serviceDate = departures[0]['runDate'].replace("-","/")
 
         firstDepartureDestinations = loadDestinationsForDepartureRtt(
-            journeyConfig, serviceUid, serviceDate, apiConfig["rttUsername"], apiConfig["rttPassword"], config["showTOC"])
+            journeyConfig, serviceUid, serviceDate, apiConfig['rttUsername'], apiConfig['rttPassword'], config['showTOC'])
 
     else:
         firstDepartureDestinations = loadDestinationsForDeparture(
-            journeyConfig, departures[0]["service_timetable"]["id"])
+            journeyConfig, departures[0]['service_timetable']['id'])
 
     return departures, firstDepartureDestinations, stationName
 
@@ -372,7 +386,7 @@ def drawSignage(device, width, height, data):
 
     # Measure the text size
     with canvas(device) as draw:
-        w, h = draw.textsize(status, font)
+        w, _unused_h = draw.textsize(status, font)
         pw, _unused_ph = draw.textsize("Plat 88", font)
 
     # Destination
@@ -387,7 +401,7 @@ def drawSignage(device, width, height, data):
     rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=100)
     # Scrolling stations
     rowTwoB = snapshot(width - callingWidth, 10,
-                       renderStations(", ".join(firstDepartureDestinations)), interval=0.01)
+                       renderStations(buildScrollList(firstDepartureDestinations, config['showTOC'])), interval=0.01)
 
     # 2nd Departure
     if(len(departures) > 1):
@@ -450,9 +464,9 @@ try:
     logFileDate = None
     logger = None
     openLogFile()
-    log("STARTUP","================================")
-    log("STARTUP","New piDepartures Session Started")
-    log("STARTUP","================================")
+    log("STARTUP","================================", forceLog=True)
+    log("STARTUP","New piDepartures Session Started", forceLog=True)
+    log("STARTUP","================================", forceLog=True)
 
     # Load the cofig files
     config = loadConfig()
